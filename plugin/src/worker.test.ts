@@ -1,11 +1,18 @@
 import { EventEmitter, once } from 'node:events'
 import { createServer } from 'node:http'
-import { mkdtempSync, mkdirSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, mkdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { dirname, join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { assert, mockHost, mountWorker, test } from 'orca/testing'
 import * as main from './worker'
 import { pluginEndpointPath, pluginRequestToken, signPluginReply } from './endpoint'
+
+const MANIFEST_VERSION = (
+  JSON.parse(
+    readFileSync(join(dirname(fileURLToPath(import.meta.url)), '..', 'orca-plugin.json'), 'utf8'),
+  ) as { version: string }
+).version
 
 const ALL_CAPABILITIES = [
   'workspace:read',
@@ -24,9 +31,11 @@ test('activates, updates status bar, answers status command and ping probe', asy
   const ping = await worker.request('orchestration-panel.probe', { action: 'ping' })
   assert.equal(ping.ok, true)
   assert.equal(ping.plugin, 'orchestration-panel')
+  assert.equal(ping.version, MANIFEST_VERSION)
 
   const status = (await worker.command('orchestration-panel.status')) as Record<string, unknown>
   assert.equal(status.plugin, 'orchestration-panel')
+  assert.equal(status.version, MANIFEST_VERSION)
 
   assert.equal(worker.host.callsOf('statusBar.update').length, 1)
   assert.deepEqual(worker.refusals, [])

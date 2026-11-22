@@ -129,6 +129,8 @@ gh run rerun <run-id> --failed
 
 推送稳定版本标签 `vX.Y.Z`（或通过 `workflow_dispatch` 手动触发 `release.yml`）时，`.github/workflows/release.yml` 中的 `plugin` job 会执行 `scripts/build-plugin.mjs` 构建自包含插件目录 `dist-plugin/`（并将 [plugin/DIST_README.md](../plugin/DIST_README.md) 渲染为独立仓库的 `README.md`），再自动同步到独立插件仓库并打上同版本标签。
 
+打包脚本将文件解包后的总大小限制在 3 MiB、单文件限制在 1 MiB 以内，防止包体回涨（内嵌回环服务以未压缩的拆分 ESM chunk 打包，并用轻量 UTF-8/MIME shim 替代 `iconv-lite` 和 `mime-db`）。这些是项目预算，不是 Orca 社区目录公布的阈值。针对目录的 `size` 审核，请用新标签发布更小的包；若同时有 `code` 标记，仍需 Orca 审核。
+
 由于 `yyq19990828/orca-orchestration-launcher` 是 GitHub Fork，而 Orca 官方社区插件爬虫会直接忽略 Fork 仓库，独立插件仓库需满足以下一次性准备：
 
 1. 在 GitHub 创建一个**公开且非 Fork** 的仓库：`yyq19990828/orchestration-panel`。

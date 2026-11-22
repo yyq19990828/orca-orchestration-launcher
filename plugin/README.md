@@ -18,7 +18,8 @@ Before using the plugin in a Git project that does not already ignore `.orca-dag
 
 - `orca-plugin.json` — Manifest validated against the installed Orca runtime (`orca skills get orca-plugin-authoring`).
 - `icon.png` — Custom fork-join DAG plugin icon (`256×256` PNG).
-- `assets/workbench-dark.png` — Dark workbench screenshot referenced by manifest `cover` and `screenshots`.
+- `assets/workbench-dark.webp` — Lossless dark workbench screenshot shared by the manifest cover and screenshot entry.
+- `assets/sidebar-dark.webp` — Plugin gallery screenshot pairing the Tasks and Pending views of a demo Run.
 - `DIST_README.md` — Template rendered to `dist-plugin/README.md` for the standalone plugin distribution repository.
 - `src/worker.ts` — Trusted-worker entry (`activate` / `deactivate`), endpoint discovery, embedded server manager, API/SSE proxy, and host bridge.
 - `src/protocol.ts` — Shared `PluginRequests` and `PluginPanelEvents` contract.
@@ -53,6 +54,6 @@ orca-ide plugin validate ./dist-plugin --json
 orca-ide plugin inspect ./dist-plugin --json
 ```
 
-`scripts/build-plugin.mjs` produces a self-contained, zero-`node_modules` directory at `dist-plugin/` (`worker.mjs` + non-test `src/*.ts` sources + `server/index.mjs` + `panel/` built by Vite + `icon.png` + `assets/` + rewritten `orca-plugin.json` + rendered `README.md` from `DIST_README.md` + `LICENSE`) and enforces Orca's archive limits (`<= 2,000` files, `<= 50 MiB`, no symlinks, no disallowed binary/font extensions).
+`scripts/build-plugin.mjs` stages a self-contained `dist-plugin/` with no runtime npm install. Orca loads the readable `src/worker.ts` directly; the unminified, code-split `server/` ESM chunks (with lightweight UTF-8/MIME shims in place of `iconv-lite` and `mime-db`), Vite `panel/`, offline skill, and listing images ship alongside it. The build checks Orca's archive limits (2,000 files, 50 MiB, no symlinks or disallowed extensions) plus stricter local guards of 3 MiB total and 1 MiB per file. These local budgets are regression guards, not published Orca Community Plugins review thresholds.
 
 When a stable release tag `vX.Y.Z` is pushed to `orca-orchestration-launcher`, `.github/workflows/release.yml` builds `dist-plugin/` (with `version` synced to `X.Y.Z`) and automatically pushes it (along with the `vX.Y.Z` tag) to `yyq19990828/orchestration-panel` (overridable via `vars.ORCA_PLUGIN_REPO`) when `secrets.ORCA_PLUGIN_DEPLOY_KEY` (recommended repo-scoped write deploy key) or `secrets.ORCA_PLUGIN_PUSH_TOKEN` is configured. For Orca's automated Community Plugins catalog (`stablyai/orca-community-plugins`), ensure that target repository is **public**, **not a fork**, and carries the `orca-plugin` GitHub topic (`https://www.onorca.dev/plugins/yyq19990828/orchestration-panel`).

@@ -206,7 +206,7 @@ jobs:
 
           cp -a dist-plugin/. "$STAGE_REPO/"
 
-          for req in orca-plugin.json README.md LICENSE icon.png worker.mjs server/index.mjs panel/index.html assets/workbench-dark.png; do
+          for req in orca-plugin.json README.md LICENSE icon.png src/worker.ts server/index.mjs panel/index.html assets/workbench-dark.webp; do
             if [[ ! -f "${STAGE_REPO}/${req}" ]]; then
               echo "Missing required staged plugin file: ${req}" >&2
               exit 1

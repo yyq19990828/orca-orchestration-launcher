@@ -2,7 +2,9 @@
 
 Visual multi-agent task DAG workbench inside **Orca**: live coordination modes, hexagonal decision & approval gates, retained worker model/effort/worktree/branch chips, scoped **Session** transcript wakeups, native L1 `agent.resume`, and a self-hosted embedded backend.
 
-![Orchestration Panel workbench](./assets/workbench-dark.png)
+![Orchestration Panel workbench](./assets/workbench-dark.webp)
+
+![Orchestration Panel sidebar showing Tasks and Pending for a running demo Run](./assets/sidebar-dark.webp)
 
 ## Highlights
 
@@ -93,6 +95,14 @@ Orchestration Panel declares `execution: "trusted-worker"` (`pluginApi: 1`) and 
 
 `{{PLUGIN_REPO}}` is the automated distribution repository staged from **[yyq19990828/orca-orchestration-launcher](https://github.com/yyq19990828/orca-orchestration-launcher)** (`v{{VERSION}}`).
 
-- Full TypeScript source for the companion worker lives in [`src/`](./src) alongside the bundled `worker.mjs`.
-- Full source for the backend server, React Flow workbench SPA, and `orca-dag` CLI lives in [yyq19990828/orca-orchestration-launcher](https://github.com/yyq19990828/orca-orchestration-launcher).
+- Orca loads the TypeScript worker directly from [`src/`](./src), without a separate compiled copy.
+- The embedded loopback server in [`server/`](./server) is bundled unminified and split into readable ESM chunks for inspection, with UTF-8 and curated web MIME shims replacing `iconv-lite` and `mime-db`.
+- Exact backend and panel sources: [orca-orchestration-launcher at `v{{VERSION}}`](https://github.com/yyq19990828/orca-orchestration-launcher/tree/v{{VERSION}}).
+- Reproduce this exact directory from the source tag:
+
+  ```bash
+  git clone --branch v{{VERSION}} --depth 1 https://github.com/yyq19990828/orca-orchestration-launcher.git
+  cd orca-orchestration-launcher && npm ci && PKG_VERSION={{VERSION}} node scripts/build-plugin.mjs
+  ```
+
 - Bug reports, feature requests, and pull requests: <https://github.com/yyq19990828/orca-orchestration-launcher/issues>.

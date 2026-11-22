@@ -6,8 +6,8 @@
 // Layout (Orca plugin archive limits: <= 2,000 files, <= 50 MiB, zero node_modules):
 //
 //   dist-plugin/
-//     orca-plugin.json   ← manifest rewritten with `"main": "worker.mjs"`
-//     worker.mjs         ← esbuild ESM bundle of plugin/src/worker.ts (Node 22+)
+//     orca-plugin.json   ← versioned manifest; Orca loads the TypeScript worker
+//     src/**             ← readable worker code, shipped once
 //     panel/**           ← Vite SPA build with `VITE_BASE=./` for Orca's HTML panel
 //     README.md, LICENSE ← plugin documentation & license
 //
@@ -31,6 +31,8 @@ import { fileURLToPath } from "node:url";
 
 const MAX_PLUGIN_FILES = 2_000;
 const MAX_PLUGIN_BYTES = 50 * 1024 * 1024;
+const PLUGIN_SIZE_BUDGET = 3 * 1024 * 1024; // Local regression guard, not a catalog limit.
+const PLUGIN_FILE_SIZE_BUDGET = 1024 * 1024; // Keep every shipped file under 1 MiB.
 const SEMVER_RE = /^\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?$/;
 const REPO_SLUG_RE = /^[A-Za-z0-9._-]+\/[A-Za-z0-9._-]+$/;
 const FORBIDDEN_EXTENSIONS = new Set([
@@ -70,19 +72,26 @@ function run(cmd, args, opts = {}) {
   execFileSync(cmd, args, { cwd: root, stdio: "inherit", ...opts });
 }
 
-function inspectAndMeasureTree(dir) {
+function inspectAndMeasureTree(dir, relPrefix = "") {
   let files = 0;
   let bytes = 0;
+  let maxFileBytes = 0;
+  let maxFilePath = "";
   for (const entry of readdirSync(dir, { withFileTypes: true })) {
     const full = join(dir, entry.name);
+    const rel = relPrefix ? `${relPrefix}/${entry.name}` : entry.name;
     const stat = lstatSync(full);
     if (stat.isSymbolicLink()) {
       throw new Error(`Symlinks are forbidden in Orca plugin distributions: ${full}`);
     }
     if (stat.isDirectory()) {
-      const sub = inspectAndMeasureTree(full);
+      const sub = inspectAndMeasureTree(full, rel);
       files += sub.files;
       bytes += sub.bytes;
+      if (sub.maxFileBytes > maxFileBytes) {
+        maxFileBytes = sub.maxFileBytes;
+        maxFilePath = sub.maxFilePath;
+      }
     } else if (stat.isFile()) {
       const ext = extname(entry.name).toLowerCase();
       if (FORBIDDEN_EXTENSIONS.has(ext)) {
@@ -90,9 +99,13 @@ function inspectAndMeasureTree(dir) {
       }
       files += 1;
       bytes += stat.size;
+      if (stat.size > maxFileBytes) {
+        maxFileBytes = stat.size;
+        maxFilePath = rel;
+      }
     }
   }
-  return { files, bytes };
+  return { files, bytes, maxFileBytes, maxFilePath };
 }
 
 function renderTemplate(raw, vars) {
@@ -104,27 +117,11 @@ function renderTemplate(raw, vars) {
 // 1. Reset staging and build the HTML panel and embedded backend server -------
 run(process.execPath, [join(root, "scripts", "build-plugin-panel.mjs"), "--dist"]);
 
-// 2. Bundle the trusted-worker entrypoint -------------------------------------
-const esbuildBin = join(
-  root,
-  "node_modules",
-  ".bin",
-  process.platform === "win32" ? "esbuild.cmd" : "esbuild",
-);
-run(esbuildBin, [
-  join(pluginDir, "src", "worker.ts"),
-  "--bundle",
-  "--platform=node",
-  "--target=node22",
-  "--format=esm",
-  "--legal-comments=none",
-  `--outfile=${join(outDir, "worker.mjs")}`,
-]);
-
-// 3. Copy readable non-test worker TypeScript sources & listing assets --------
-const srcDir = join(pluginDir, "src");
+// 2. Copy non-test worker sources and listing assets. The worker is already
+// TypeScript in dev; the production host supports the same entrypoint.
+const srcDir = join(pluginDir, dirname(manifest.main));
 if (existsSync(srcDir)) {
-  const outSrcDir = join(outDir, "src");
+  const outSrcDir = join(outDir, dirname(manifest.main));
   mkdirSync(outSrcDir, { recursive: true });
   for (const entry of readdirSync(srcDir, { withFileTypes: true })) {
     if (!entry.isFile()) continue;
@@ -139,11 +136,10 @@ if (existsSync(assetsDir)) {
   cpSync(assetsDir, join(outDir, "assets"), { recursive: true, dereference: false });
 }
 
-// 4. Emit production manifest + standalone README + icon + LICENSE ------------
+// 3. Emit production manifest + standalone README + icon + LICENSE ------------
 const prodManifest = {
   ...manifest,
   version,
-  main: "worker.mjs",
 };
 writeFileSync(join(outDir, "orca-plugin.json"), JSON.stringify(prodManifest, null, 2) + "\n");
 
@@ -167,10 +163,10 @@ if (existsSync(join(root, "LICENSE"))) {
   cpSync(join(root, "LICENSE"), join(outDir, "LICENSE"));
 }
 
-// 5. Enforce required files, no symlinks/forbidden types & Orca archive limits -
+// 4. Enforce required files, Orca archive limits, and our release size budget.
 const requiredPaths = [
   "orca-plugin.json",
-  "worker.mjs",
+  prodManifest.main,
   "server/index.mjs",
   "server/skill/SKILL.md",
   "panel/index.html",
@@ -189,16 +185,26 @@ for (const rel of requiredPaths) {
   }
 }
 
-const { files, bytes } = inspectAndMeasureTree(outDir);
+const { files, bytes, maxFileBytes, maxFilePath } = inspectAndMeasureTree(outDir);
 if (files > MAX_PLUGIN_FILES) {
   throw new Error(`dist-plugin has ${files} files, exceeding Orca's ${MAX_PLUGIN_FILES}-file limit.`);
 }
 if (bytes > MAX_PLUGIN_BYTES) {
   throw new Error(`dist-plugin is ${bytes} bytes, exceeding Orca's ${MAX_PLUGIN_BYTES}-byte limit.`);
 }
+if (bytes > PLUGIN_SIZE_BUDGET) {
+  throw new Error(`dist-plugin is ${bytes} bytes, exceeding the local ${PLUGIN_SIZE_BUDGET}-byte release budget.`);
+}
+if (maxFileBytes > PLUGIN_FILE_SIZE_BUDGET) {
+  throw new Error(
+    `dist-plugin/${maxFilePath} is ${maxFileBytes} bytes, exceeding the local ${PLUGIN_FILE_SIZE_BUDGET}-byte per-file budget.`,
+  );
+}
 
 const kb = (bytes / 1024).toFixed(1);
+const maxKb = (maxFileBytes / 1024).toFixed(1);
 console.log(`\n✅ Staged Orca plugin → dist-plugin/ (id=${prodManifest.id}, version=${version}, repo=${pluginRepo})`);
-console.log(`   Archive size: ${files} files, ${kb} KiB (limits: ${MAX_PLUGIN_FILES} files, 50 MiB)`);
+console.log(`   Payload size: ${files} files, ${kb} KiB (local budget: ${PLUGIN_SIZE_BUDGET / 1024} KiB)`);
+console.log(`   Max file:     ${maxKb} KiB (${maxFilePath}; per-file budget: ${PLUGIN_FILE_SIZE_BUDGET / 1024} KiB)`);
 console.log(`   Validate:     orca-ide plugin validate ./dist-plugin --json`);
 console.log(`   Inspect:      orca-ide plugin inspect ./dist-plugin --json`);

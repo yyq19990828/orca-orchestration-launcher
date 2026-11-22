@@ -152,6 +152,8 @@ The rerun checks out the same tag and publishes that tagged tree. Do not cut a n
 
 Pushing a stable `vX.Y.Z` tag (or running `release.yml` manually via `workflow_dispatch`) also runs the `plugin` job in `.github/workflows/release.yml`, which builds `dist-plugin/` (`scripts/build-plugin.mjs`, rendering `plugin/DIST_README.md` to `dist-plugin/README.md`) and syncs + tags the standalone plugin distribution repository.
 
+The staging script caps the unpacked payload at 3 MiB total and 1 MiB per file to catch size regressions (bundling the embedded loopback server as unminified split ESM chunks with lightweight UTF-8/MIME shims). These are project budgets, not published Orca catalog thresholds. For a catalog `size` hold, publish a smaller bundle under a new tag; a separate `code` hold still requires Orca review.
+
 Because `yyq19990828/orca-orchestration-launcher` is a GitHub fork and Orca's automated Community Plugins crawler ignores forks, the plugin must live in a separate **public, non-fork** repository:
 
 1. Create a public, non-fork GitHub repository: `yyq19990828/orchestration-panel`.

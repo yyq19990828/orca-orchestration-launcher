@@ -12,14 +12,20 @@
   "homepage": "https://github.com/yyq19990828/orca-orchestration-launcher",
   "icon": "icon.png",
   "cover": {
-    "path": "assets/workbench-dark.png",
+    "path": "assets/workbench-dark.webp",
     "alt": "Orchestration Panel four-zone dark IDE workbench showing a multi-agent task DAG, hexagonal gate, and live messages."
   },
   "screenshots": [
     {
-      "path": "assets/workbench-dark.png",
+      "path": "assets/workbench-dark.webp",
       "alt": "Orchestration Panel dark workbench with DAG canvas, Fleet sidebar, hexagonal approval gate, and Messages inspector.",
       "caption": "4-zone DAG workbench with hexagonal approval gates, retained model and worktree chips, and live coordinator messages.",
+      "theme": "dark"
+    },
+    {
+      "path": "assets/sidebar-dark.webp",
+      "alt": "Two views of a running Orchestration Panel sidebar: task cards and progress on the left, a release approval and worker question on the right.",
+      "caption": "A Run in progress: monitor tasks and handle approvals and worker questions in the Orca sidebar.",
       "theme": "dark"
     }
   ],
