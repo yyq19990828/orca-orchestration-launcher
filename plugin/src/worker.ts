@@ -630,6 +630,13 @@ export default function activate(orca: OrcaWorkerApi): void {
     if (payload.path) {
       if (connections.has(payload.path)) disconnectViewer(payload.path)
       stopManagedServer(payload.path)
+    } else if (payload.workspaceId) {
+      for (const conn of [...connections.values()]) {
+        if (conn.workspaceListId === payload.workspaceId) {
+          disconnectViewer(conn.workspacePath)
+          stopManagedServer(conn.workspacePath)
+        }
+      }
     }
     orca.log(`workspace.removed ${payload.workspaceId}`)
   })
@@ -856,10 +863,29 @@ export default function activate(orca: OrcaWorkerApi): void {
   })
 
   // --- Panel SPA proxy (`orca-dag.api` + SSE streams) ---
+  function findConnectedViewer(workspaceId: string): ViewerConnection | null {
+    for (const conn of connections.values()) {
+      if (conn.connected && conn.workspaceListId === workspaceId) return conn
+    }
+    return null
+  }
+
   async function resolveViewer(workspaceId: string | null, allowSingleFallback = false): Promise<ViewerConnection | null> {
+    if (disposed) return null
+    // Fast path: reuse an already-verified live connection for this workspace
+    // without repeating disk endpoint scans and `workspace.list` host RPCs on
+    // every sidebar poll.
+    if (workspaceId) {
+      const cached = findConnectedViewer(workspaceId)
+      if (cached) return cached
+    }
     if (!orca.host.has('workspace.list')) return null
     await discoverViewers()
     if (disposed) return null
+    if (workspaceId) {
+      const discovered = findConnectedViewer(workspaceId)
+      if (discovered) return discovered
+    }
     const inventory = await orca.host.call('workspace.list', {}).catch(() => null)
     if (!inventory) return null
     const locals = inventory.workspaces.filter((ws) => (ws.hostId === 'local' || ws.hostId === null) && Boolean(ws.path))
@@ -993,6 +1019,24 @@ export default function activate(orca: OrcaWorkerApi): void {
       return { ok: false, code: 'confirmation_required' }
     }
     return installBundledSkill()
+  })
+
+  orca.panels.handle('orca-dag.reconnect', async (rawInput, ctx): Promise<{ ok: boolean }> => {
+    const workspaceId = typeof (rawInput as { workspaceId?: unknown } | null)?.workspaceId === 'string'
+      ? (rawInput as { workspaceId: string }).workspaceId
+      : ''
+    if (
+      ctx.panel.surface !== 'panel' ||
+      ctx.panel.contributionId !== 'orchestration' ||
+      !workspaceId ||
+      ctx.signal.aborted
+    ) {
+      return { ok: false }
+    }
+    const existing = findConnectedViewer(workspaceId)
+    if (existing) disconnectViewer(existing.workspacePath)
+    const conn = await resolveViewer(workspaceId)
+    return { ok: Boolean(conn?.connected) }
   })
 
   orca.panels.handle('orca-dag.api', async (rawInput, ctx): Promise<BridgeApiResponse> => {

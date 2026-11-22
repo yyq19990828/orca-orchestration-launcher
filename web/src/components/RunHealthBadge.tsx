@@ -138,9 +138,6 @@ export function RunHealthBadge({
         >
           <CoordinationModeIcon mode={mode} size={sidebar ? 11 : 13} />
           <span className="runhealth__chip-label">{t(meta.shortLabel)}</span>
-          {sidebar && health.coordinatorHandle && (
-            <code className="runhealth__chip-handle">{health.coordinatorHandle}</code>
-          )}
           {warningCount > 0 && <b className="runhealth__flag">{warningCount}</b>}
           {warningCount === 0 && infoCount > 0 && <span className="runhealth__info-dot">i</span>}
         </button>
@@ -152,7 +149,7 @@ export function RunHealthBadge({
           aria-label={t("health.panelAria")}
           sideOffset={8}
           side={sidebar ? "top" : "bottom"}
-          align={sidebar ? "center" : "end"}
+          align={sidebar ? "start" : "end"}
           collisionPadding={12}
         >
           <div className="runhealth__row">

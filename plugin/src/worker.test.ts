@@ -311,10 +311,25 @@ test('connects to local viewer endpoint, proxies GET/POST with mutation token, a
       assert.equal(resumeReceipt?.terminalId, 'term_resumed_sess-42')
       assert.equal(resumeReceipt?.started, true)
 
+      const listCallsBeforeCachedApi = worker.host.callsOf('workspace.list').length
       const getRes = await worker.request('orca-dag.api', { workspaceId, method: 'GET', url: '/api/runs' })
       assert.equal(getRes.ok, true)
       assert.equal(getRes.status, 200)
       assert.deepEqual(getRes.body, { runs: [{ id: 'run_test' }] })
+      // Repeated API polls for a connected workspace must use the in-memory cache
+      // instead of re-running workspace.list + endpoint scans on every request.
+      const getRes2 = await worker.request('orca-dag.api', { workspaceId, method: 'GET', url: '/api/runs' })
+      assert.equal(getRes2.ok, true)
+      assert.equal(worker.host.callsOf('workspace.list').length, listCallsBeforeCachedApi)
+
+      assert.deepEqual(
+        await worker.request('orca-dag.reconnect', { workspaceId }, { panel: 'another-panel' }),
+        { ok: false },
+      )
+      assert.deepEqual(
+        await worker.request('orca-dag.reconnect', { workspaceId }, { panel: 'orchestration' }),
+        { ok: true },
+      )
 
       assert.deepEqual(
         await worker.request('orca-dag.skill.install', { confirmed: false }, { panel: 'orchestration' }),

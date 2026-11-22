@@ -49,6 +49,10 @@ declare module 'orca' {
       input: { confirmed: boolean }
       output: SkillInstallReply
     }
+    'orca-dag.reconnect': {
+      input: { workspaceId: string }
+      output: { ok: boolean }
+    }
     'orca-dag.activity.subscribe': {
       input: ActivitySubscribeRequest
       output: { ok: boolean }

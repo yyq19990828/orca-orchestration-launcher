@@ -142,6 +142,13 @@ export async function installPluginSkill(): Promise<{ installed: number; upToDat
   return { installed: receipt.installed, upToDate: receipt.upToDate };
 }
 
+/** Drop any stale bridge connection for the active workspace and reconnect or revive the embedded viewer. */
+export async function reconnectPluginViewer(): Promise<boolean> {
+  if (!isOrcaPluginFrame()) return false;
+  const reply = await requestWorkspace<{ ok?: boolean }>("orca-dag.reconnect", {});
+  return reply?.ok === true;
+}
+
 /**
  * Route an API call through `window.orca.plugin.request("orca-dag.api", ...)`
  * when running inside a native Orca plugin frame.

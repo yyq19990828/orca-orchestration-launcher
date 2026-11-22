@@ -44,7 +44,7 @@ orca plugin install {{PLUGIN_REPO}}@v{{VERSION}} --json
 
 ### Companion Agent Skill (Optional)
 
-After installing the plugin, run **Orchestration Panel: Install or Update Agent Skill** from the plugin details or command palette. Alternatively, open the plugin sidebar and select **Skill → Install or update**. Both install the bundled `orca-dag` version into detected local Agent skill directories without a selected Run, viewer connection, or download. They preserve `USER_PREFERENCES.md`. Installing or starting the plugin does not install the skill automatically.
+After installing the plugin, run **Orchestration Panel: Install or Update Agent Skill** from the plugin details or command palette. Alternatively, open the plugin sidebar and select **⋯ → Install or update Agent skill**. Both install the bundled `orca-dag` version into detected local Agent skill directories without a selected Run, viewer connection, or download. They preserve `USER_PREFERENCES.md`. Installing or starting the plugin does not install the skill automatically.
 
 Use **Orchestration Panel: Uninstall Agent Skill** to remove only the bundled skill's managed files from local Agent skill directories. Preferences, custom files, symlinked skill checkouts, the plugin, and workspace data remain untouched.
 
